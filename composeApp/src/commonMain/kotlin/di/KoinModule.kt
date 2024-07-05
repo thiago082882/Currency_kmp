@@ -1,22 +1,32 @@
 package di
 
 import com.russhwolf.settings.Settings
-import data.local.PreferencesImpl
+import data.local.repository.MongoDbRepositoryImpl
+import data.local.repository.PreferencesRepositoryImpl
 import data.remore.api.CurrencyApiServiceImpl
-import domain.CurrencyApiService
-import domain.PreferencesRepository
+import domain.api.CurrencyApiService
+import domain.repository.MongoDbRepository
+import domain.repository.PreferencesRepository
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
+import presentation.screen.HomeViewModel
 
 val appModule = module {
     single { Settings() }
-    single<PreferencesRepository>{PreferencesImpl(settings = get())}
-    single<CurrencyApiService>{CurrencyApiServiceImpl(preferencesRepository = get())}
+    single<PreferencesRepository> { PreferencesRepositoryImpl(settings = get()) }
+    single<MongoDbRepository> { MongoDbRepositoryImpl() }
+    single<CurrencyApiService> { CurrencyApiServiceImpl(preferences = get()) }
+    factory {
+        HomeViewModel(
+            preferencesRepository = get(),
+            currencyApiService = get(),
+            mongoDbRepository = get()
+        )
+    }
 }
 
-fun initializeKoin(){
+fun initializeKoin() {
     startKoin {
         modules(appModule)
     }
-
 }

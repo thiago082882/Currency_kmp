@@ -1,11 +1,11 @@
 package data.remore.api
 
-import domain.CurrencyApiService
-import domain.PreferencesRepository
-import domain.model.ApiResponse
-import domain.model.Currency
+import domain.api.CurrencyApiService
+import domain.model.CurrencyApiResponse
 import domain.model.CurrencyCode
-import domain.model.RequestState
+import domain.model.CurrencyItemResponse
+import domain.repository.PreferencesRepository
+import domain.util.RequestState
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.DefaultRequest
@@ -17,9 +17,9 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 class CurrencyApiServiceImpl(
-    private  val preferencesRepository: PreferencesRepository
-):CurrencyApiService {
-    companion object{
+    private val preferences: PreferencesRepository
+) : CurrencyApiService {
+    companion object {
         const val ENDPOINT = "https://api.currencyapi.com/v3/latest"
         const val API_KEY = "cur_live_m1zeeA3rI5xuKKYT4uYWjJqgQhjsH7lOsh4vSbMF"
     }
@@ -33,7 +33,7 @@ class CurrencyApiServiceImpl(
             })
         }
         install(HttpTimeout) {
-            requestTimeoutMillis = 15000
+            requestTimeoutMillis = 15_000
         }
         install(DefaultRequest) {
             headers {
@@ -41,34 +41,39 @@ class CurrencyApiServiceImpl(
             }
         }
     }
-    override suspend fun getLatestExchangeRates(): RequestState<List<Currency>> {
+
+    override suspend fun getLatestExchangeRates(): RequestState<List<CurrencyItemResponse>> {
         return try {
             val response = httpClient.get(ENDPOINT)
-            if(response.status.value == 200){
-                val apiResponse = Json.decodeFromString<ApiResponse>(response.body())
+            if (response.status.value == 200) {
+                println("API RESPONSE: ${response.body<String>()}")
+                val apiResponse = Json.decodeFromString<CurrencyApiResponse>(response.body())
 
+                // Filter the data
                 val availableCurrencyCodes = apiResponse.data.keys
                     .filter {
-                    CurrencyCode.entries
-                        .map{ code -> code.name}
-                        .toSet()
-                        .contains(it)
-                }
+                        CurrencyCode.entries.map { currencyCode -> currencyCode.name }
+                            .toSet()
+                            .contains(it)
+                    }
 
-                val availableCurrencies = apiResponse.data.values.filter {  currency ->
-                    availableCurrencyCodes.contains(currency.code)
-                }
+                val availableCurrencies = apiResponse.data.values
+                    .filter { currency ->
+                        availableCurrencyCodes.contains(currency.code)
+                    }
 
-                //Persist a timestamp of the last updated
-                val lastUpdated = apiResponse.meta.lastUpdatedAt
-                preferencesRepository.saveLastUpdated(lastUpdated)
-                RequestState.Success(data= availableCurrencies)
+                // Persist a timestamp value
+                preferences.saveLastUpdatedTime(apiResponse.meta.lastUpdatedAt)
 
-            }else{
-                RequestState.Error(error="Http Error Code : ${response.status.value}"  )
+                // Pass the filtered data
+                RequestState.Success(data = availableCurrencies)
+            } else {
+                println("Error: ${response.status}")
+                RequestState.Error(message = "Http Error code: ${response.status}")
             }
-        }catch (e:Exception){
-            RequestState.Error(error = e.message.toString())
+
+        } catch (e: Exception) {
+            RequestState.Error(message = e.message.toString())
         }
     }
 }

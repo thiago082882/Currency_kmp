@@ -1,15 +1,13 @@
-
 package domain.model
 
-
-import currencyapp.composeapp.generated.resources.Res
 import currencyapp.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 
-
-
-enum class CurrencyCode (val country:String,
-                        val flag: DrawableResource
+@OptIn(ExperimentalResourceApi::class)
+enum class CurrencyCode(
+    val country: String,
+    val flag: DrawableResource
 ) {
     AED(country = "United Arab Emirates", flag = Res.drawable.united_arab_emirates),
     AFN(country = "Afghanistan", flag = Res.drawable.afghanistan),
